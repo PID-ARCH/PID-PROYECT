@@ -10,16 +10,17 @@
 
     <style>
         :root { --primary: #007bff; --dark: #343a40; --light: #f4f6f8; }
-        body { font-family: 'Segoe UI', Arial; background: var(--light); margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--light); margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         
         /* Pantalla de Login */
         #auth-screen { text-align: center; padding: 50px 20px; }
-        .google-btn { background: #4285F4; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .google-btn { background: #4285F4; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
+        .google-btn:hover { background: #357ae8; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         
         /* App Principal */
         #app-content { display: none; }
-        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light); margin-bottom: 20px; padding-bottom: 10px; }
         
         .section { background: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
         input, button { padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; }
@@ -31,13 +32,14 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: var(--primary); color: white; }
         .btn-delete { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; }
+        .btn-delete:hover { background: #cc0000; }
     </style>
 </head>
 <body>
 
     <div id="auth-screen" class="container">
         <h1>🔐 Acceso Privado</h1>
-        <p>Inicia sesión para gestionar tus documentos de forma segura.</p>
+        <p>Inicia sesión con tu cuenta para gestionar tus documentos de seguros de forma segura y privada.</p>
         <button class="google-btn" onclick="loginWithGoogle()">Entrar con Google</button>
     </div>
 
@@ -45,8 +47,8 @@
         <div class="header-flex">
             <h2>📊 Mis Documentos</h2>
             <div>
-                <span id="user-email" style="font-size: 0.9em; color: #666; margin-right: 10px;"></span>
-                <button class="btn-logout" onclick="logout()">Salir</button>
+                <span id="user-email" style="font-size: 0.9em; color: #666; margin-right: 10px; font-weight: bold;"></span>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
             </div>
         </div>
 
@@ -54,15 +56,15 @@
             <h3>➕ Registrar Información / Seguro</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px;">
                 <input type="text" id="doc-name" placeholder="Ej: Póliza de Auto">
-                <input type="text" id="doc-value" placeholder="Ej: #123456789">
-                <button class="btn-add" onclick="addData()">Guardar</button>
+                <input type="text" id="doc-value" placeholder="Ej: #987654321">
+                <button class="btn-add" onclick="addData()">Guardar Dato</button>
             </div>
         </div>
 
         <div class="section">
-            <h3>📂 Subir Archivo (PDF/Imagen)</h3>
-            <input type="file" id="fileUpload">
-            <button onclick="saveFile()" style="background: #28a745; color: white; border: none;">Subir Documento</button>
+            <h3>📂 Subir Archivo (PDF o Imagen)</h3>
+            <input type="file" id="fileUpload" accept="image/*,.pdf">
+            <button onclick="saveFile()" style="background: #28a745; color: white; border: none; width: 100%;">Subir y Guardar en mi Cuenta</button>
         </div>
 
         <table>
@@ -78,24 +80,27 @@
     </div>
 
 <script>
-    // Tu configuración real de Firebase
+    // CONFIGURACIÓN OFICIAL DE TU PROYECTO FIREBASE
     const firebaseConfig = {
         apiKey: "AIzaSyB6yuXC28SU6ujb4yLyaAUZZVNYHGM2Gs",
         authDomain: "pid-project-c9ed4.firebaseapp.com",
         projectId: "pid-project-c9ed4",
         storageBucket: "pid-project-c9ed4.firebasestorage.app",
         messagingSenderId: "191766920684",
-        appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9"
+        appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9",
+        measurementId: "G-JRR6NSNWP7"
     };
 
-    // Inicializar Firebase
+    // Inicializar la conexión
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
 
     let currentUser = null;
-    let database = JSON.parse(localStorage.getItem("private_db")) || [];
+    // Base de datos local vinculada a la cuenta
+    let database = JSON.parse(localStorage.getItem("pid_private_db")) || [];
 
-    // --- Autenticación ---
+    // --- Lógica de Autenticación ---
+
     function loginWithGoogle() {
         const provider = new firebase.auth.GoogleAuthProvider();
         auth.signInWithPopup(provider).then((result) => {
@@ -103,15 +108,22 @@
             showApp();
         }).catch(error => {
             console.error(error);
-            alert("Error al entrar: " + error.message);
+            if(error.code === 'auth/unauthorized-domain') {
+                alert("Error: Este dominio no está autorizado en Firebase. Agrega 'pid-arch.github.io' en la consola de Firebase.");
+            } else {
+                alert("Error al entrar: " + error.message);
+            }
         });
     }
 
-    // Persistencia de sesión: Si ya estaba logueado, entra directo
+    // Detectar si el usuario ya estaba logueado al recargar
     auth.onAuthStateChanged((user) => {
         if (user) {
             currentUser = user;
             showApp();
+        } else {
+            document.getElementById("auth-screen").style.display = "block";
+            document.getElementById("app-content").style.display = "none";
         }
     });
 
@@ -128,42 +140,44 @@
         });
     }
 
-    // --- Manejo de Datos ---
+    // --- Gestión de Documentos ---
+
     function render() {
         const table = document.getElementById("tableBody");
         table.innerHTML = "";
 
-        // Solo mostrar lo que le pertenece al usuario logueado
+        // FILTRO DE PRIVACIDAD: Solo mostrar lo que le pertenece al usuario logueado
         const myData = database.filter(item => item.owner === currentUser.email);
 
         myData.forEach((item) => {
             const realIndex = database.indexOf(item);
             let content = item.type === "text" ? 
                 `<b>${item.name}:</b> ${item.value}` : 
-                `<a href="${item.data}" download="${item.name}">${item.name} (Descargar)</a>`;
+                `<a href="${item.data}" download="${item.name}" style="color: #007bff; text-decoration: none;">📄 ${item.name} (Descargar)</a>`;
 
             table.innerHTML += `
                 <tr>
-                    <td>${item.type === "text" ? '📝 Dato' : '📄 Archivo'}</td>
+                    <td>${item.type === "text" ? '📝 Dato' : '🖼️ Archivo'}</td>
                     <td>${content}</td>
                     <td><button class="btn-delete" onclick="deleteItem(${realIndex})">Eliminar</button></td>
                 </tr>
             `;
         });
 
-        localStorage.setItem("private_db", JSON.stringify(database));
+        // Guardar cambios en el almacenamiento persistente
+        localStorage.setItem("pid_private_db", JSON.stringify(database));
     }
 
     function addData() {
         const name = document.getElementById("doc-name").value;
         const value = document.getElementById("doc-value").value;
-        if (!name || !value) return alert("Completa los campos");
+        if (!name || !value) return alert("Por favor, llena ambos campos");
 
         database.push({
             type: "text",
-            name,
-            value,
-            owner: currentUser.email
+            name: name,
+            value: value,
+            owner: currentUser.email // Vinculamos el dato al correo actual
         });
 
         render();
@@ -174,7 +188,7 @@
     function saveFile() {
         const fileInput = document.getElementById("fileUpload");
         const file = fileInput.files[0];
-        if (!file) return alert("Selecciona un archivo");
+        if (!file) return alert("Selecciona un archivo primero");
 
         const reader = new FileReader();
         reader.onload = function(e) {
@@ -182,16 +196,17 @@
                 type: "file",
                 name: file.name,
                 data: e.target.result,
-                owner: currentUser.email
+                owner: currentUser.email // Vinculamos el archivo al correo actual
             });
             render();
-            alert("Documento guardado ✔️");
+            alert("¡Documento guardado con éxito! ✔️");
+            fileInput.value = "";
         };
         reader.readAsDataURL(file);
     }
 
     function deleteItem(index) {
-        if (confirm("¿Seguro que quieres borrar este documento?")) {
+        if (confirm("¿Estás seguro de que deseas eliminar este documento personal?")) {
             database.splice(index, 1);
             render();
         }
