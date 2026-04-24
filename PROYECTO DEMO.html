@@ -78,44 +78,42 @@
     </div>
 
 <script>
-    // Configuración de Firebase (Debes obtener estos datos de tu consola Firebase)
+    // Tu configuración real de Firebase
     const firebaseConfig = {
-        apiKey: "TU_API_KEY",
-        authDomain: "TU_PROYECTO.firebaseapp.com",
-        projectId: "TU_PROYECTO",
-        storageBucket: "TU_PROYECTO.appspot.com",
-        messagingSenderId: "TU_SENDER_ID",
-        appId: "TU_APP_ID"
+        apiKey: "AIzaSyB6yuXC28SU6ujb4yLyaAUZZVNYHGM2Gs",
+        authDomain: "pid-project-c9ed4.firebaseapp.com",
+        projectId: "pid-project-c9ed4",
+        storageBucket: "pid-project-c9ed4.firebasestorage.app",
+        messagingSenderId: "191766920684",
+        appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9"
     };
 
-    // Inicializar Firebase (Solo si tienes la config, sino funcionará en modo local simulación)
-    let auth;
-    try {
-        firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth();
-    } catch (e) {
-        console.log("Firebase no configurado, usando modo local de prueba.");
-    }
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
     let currentUser = null;
     let database = JSON.parse(localStorage.getItem("private_db")) || [];
 
-    // --- LÓGICA DE AUTENTICACIÓN ---
-
+    // --- Autenticación ---
     function loginWithGoogle() {
-        // Simulación para que puedas probar el código de inmediato
-        if (!auth) {
-            currentUser = { email: "usuario@ejemplo.com", name: "Usuario Prueba" };
-            showApp();
-            return;
-        }
-
         const provider = new firebase.auth.GoogleAuthProvider();
         auth.signInWithPopup(provider).then((result) => {
             currentUser = result.user;
             showApp();
-        }).catch(error => alert("Error al entrar: " + error.message));
+        }).catch(error => {
+            console.error(error);
+            alert("Error al entrar: " + error.message);
+        });
     }
+
+    // Persistencia de sesión: Si ya estaba logueado, entra directo
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            currentUser = user;
+            showApp();
+        }
+    });
 
     function showApp() {
         document.getElementById("auth-screen").style.display = "none";
@@ -125,20 +123,20 @@
     }
 
     function logout() {
-        if (auth) auth.signOut();
-        location.reload();
+        auth.signOut().then(() => {
+            location.reload();
+        });
     }
 
-    // --- LÓGICA DE DATOS ---
-
+    // --- Manejo de Datos ---
     function render() {
         const table = document.getElementById("tableBody");
         table.innerHTML = "";
 
-        // FILTRO DE PRIVACIDAD: Solo mostramos lo que pertenece al usuario actual
+        // Solo mostrar lo que le pertenece al usuario logueado
         const myData = database.filter(item => item.owner === currentUser.email);
 
-        myData.forEach((item, index) => {
+        myData.forEach((item) => {
             const realIndex = database.indexOf(item);
             let content = item.type === "text" ? 
                 `<b>${item.name}:</b> ${item.value}` : 
@@ -159,14 +157,13 @@
     function addData() {
         const name = document.getElementById("doc-name").value;
         const value = document.getElementById("doc-value").value;
-
         if (!name || !value) return alert("Completa los campos");
 
         database.push({
             type: "text",
             name,
             value,
-            owner: currentUser.email // Registro de propiedad
+            owner: currentUser.email
         });
 
         render();
@@ -185,16 +182,16 @@
                 type: "file",
                 name: file.name,
                 data: e.target.result,
-                owner: currentUser.email // Registro de propiedad
+                owner: currentUser.email
             });
             render();
-            alert("Documento guardado privadamente ✔️");
+            alert("Documento guardado ✔️");
         };
         reader.readAsDataURL(file);
     }
 
     function deleteItem(index) {
-        if (confirm("¿Seguro que quieres borrar este documento personal?")) {
+        if (confirm("¿Seguro que quieres borrar este documento?")) {
             database.splice(index, 1);
             render();
         }
