@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PID PRO</title>
+
+<style>
+body { font-family: Arial; background: #f4f6f8; padding:20px; }
+.container { max-width:900px; margin:auto; background:white; padding:20px; border-radius:10px; }
+button { padding:10px; margin:5px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div id="auth">
+    <h2>🔐 Login</h2>
+    <button id="login">Entrar con Google</button>
+</div>
+
+<div id="app" style="display:none;" class="container">
+    <h2>📊 Documentos</h2>
+    <p id="user"></p>
+    <button id="logout">Cerrar sesión</button>
+
+    <h3>➕ Agregar dato</h3>
+    <input id="name" placeholder="Nombre">
+    <input id="value" placeholder="Valor">
+    <button id="add">Guardar</button>
+
+    <h3>📂 Subir archivo</h3>
+    <input type="file" id="file">
+    <button id="upload">Subir</button>
+
+    <ul id="list"></ul>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB6yuXC28SU6ujb4yLyAUaZCSVNYHGM2Gs",
+  authDomain: "pid-proyecto-c9ed4.firebaseapp.com",
+  projectId: "pid-proyecto-c9ed4",
+  storageBucket: "pid-proyecto-c9ed4.firebasestorage.app",
+  messagingSenderId: "191766920684",
+  appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+const provider = new GoogleAuthProvider();
+
+let user = null;
+
+// LOGIN
+document.getElementById("login").onclick = () => {
+    signInWithPopup(auth, provider);
+};
+
+document.getElementById("logout").onclick = () => {
+    signOut(auth);
+};
+
+// DETECTAR USUARIO
+onAuthStateChanged(auth, async (u) => {
+    if (u) {
+        user = u;
+        document.getElementById("auth").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        document.getElementById("user").innerText = user.email;
+        loadData();
+    }
+});
+
+// AGREGAR DATO
+document.getElementById("add").onclick = async () => {
+    const name = document.getElementById("name").value;
+    const value = document.getElementById("value").value;
+
+    if (!name || !value) return;
+
+    await addDoc(collection(db, "docs"), {
+        type: "text",
+        name,
+        value,
+        owner: user.uid
+    });
+
+    loadData();
+};
+
+// SUBIR ARCHIVO
+document.getElementById("upload").onclick = async () => {
+    const file = document.getElementById("file").files[0];
+    if (!file) return;
+
+    const storageRef = ref(storage, "files/" + user.uid + "/" + file.name);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+
+    await addDoc(collection(db, "docs"), {
+        type: "file",
+        name: file.name,
+        url,
+        owner: user.uid
+    });
+
+    loadData();
+};
+
+// CARGAR DATOS
+async function loadData() {
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+
+    const q = query(collection(db, "docs"), where("owner", "==", user.uid));
+    const snapshot = await getDocs(q);
+
+    snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+
+        const li = document.createElement("li");
+
+        if (data.type === "text") {
+            li.innerHTML = `<b>${data.name}:</b> ${data.value}`;
+        } else {
+            li.innerHTML = `<a href="${data.url}" target="_blank">📄 ${data.name}</a>`;
+        }
+
+        const delBtn = document.createElement("button");
+        delBtn.innerText = "Eliminar";
+        delBtn.onclick = async () => {
+            await deleteDoc(doc(db, "docs", docSnap.id));
+            loadData();
+        };
+
+        li.appendChild(delBtn);
+        list.appendChild(li);
+    });
+}
+</script>
+
+</body>
+</html>
