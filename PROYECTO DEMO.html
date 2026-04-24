@@ -1,231 +1,204 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title> PERSONAL INSURANCE DOCUMENTS </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PERSONAL INSURANCE DOCUMENTS</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
 
-<style>
-body {
-    font-family: Arial;
-    background: #f4f6f8;
-    padding: 20px;
-}
-
-.container {
-    max-width: 900px;
-    margin: auto;
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-h1 {
-    text-align: center;
-}
-
-input, button {
-    padding: 10px;
-    margin: 5px;
-}
-
-button {
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #0056b3;
-}
-
-table {
-    width: 100%;
-    margin-top: 20px;
-    border-collapse: collapse;
-}
-
-th, td {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: center;
-}
-
-th {
-    background: #007bff;
-    color: white;
-}
-</style>
+    <style>
+        :root { --primary: #007bff; --dark: #343a40; --light: #f4f6f8; }
+        body { font-family: 'Segoe UI', Arial; background: var(--light); margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        /* Pantalla de Login */
+        #auth-screen { text-align: center; padding: 50px 20px; }
+        .google-btn { background: #4285F4; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        
+        /* App Principal */
+        #app-content { display: none; }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--light); margin-bottom: 20px; }
+        
+        .section { background: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
+        input, button { padding: 10px; margin: 5px 0; border-radius: 5px; border: 1px solid #ddd; }
+        button { cursor: pointer; transition: 0.3s; font-weight: 600; }
+        .btn-add { background: var(--primary); color: white; border: none; width: 100%; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 5px 15px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: var(--primary); color: white; }
+        .btn-delete { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 4px; }
+    </style>
 </head>
-
 <body>
 
-<div class="container">
-    <h1>📊 PERSONAL DOCUMENTS </h1>
+    <div id="auth-screen" class="container">
+        <h1>🔐 Acceso Privado</h1>
+        <p>Inicia sesión para gestionar tus documentos de forma segura.</p>
+        <button class="google-btn" onclick="loginWithGoogle()">Entrar con Google</button>
+    </div>
 
-    <h3>➕ Agregar Datos</h3>
-    <input type="text" id="name" placeholder="Nombre">
-    <input type="text" id="age" placeholder="Edad">
-    <button onclick="addData()">Agregar</button>
+    <div id="app-content" class="container">
+        <div class="header-flex">
+            <h2>📊 Mis Documentos</h2>
+            <div>
+                <span id="user-email" style="font-size: 0.9em; color: #666; margin-right: 10px;"></span>
+                <button class="btn-logout" onclick="logout()">Salir</button>
+            </div>
+        </div>
 
-    <h3>📂 Subir Archivo</h3>
-    <input type="file" id="fileUpload">
-    <button onclick="saveFile()">Guardar Archivo</button>
+        <div class="section">
+            <h3>➕ Registrar Información / Seguro</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px;">
+                <input type="text" id="doc-name" placeholder="Ej: Póliza de Auto">
+                <input type="text" id="doc-value" placeholder="Ej: #123456789">
+                <button class="btn-add" onclick="addData()">Guardar</button>
+            </div>
+        </div>
 
-    <h3>💾 Backup</h3>
-    <button onclick="exportDB()">Exportar JSON</button>
-    <input type="file" onchange="importDB(event)">
+        <div class="section">
+            <h3>📂 Subir Archivo (PDF/Imagen)</h3>
+            <input type="file" id="fileUpload">
+            <button onclick="saveFile()" style="background: #28a745; color: white; border: none;">Subir Documento</button>
+        </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Tipo</th>
-                <th>Contenido</th>
-                <th>Acción</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
-</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Descripción / Archivo</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
 
 <script>
-let database = JSON.parse(localStorage.getItem("db")) || [];
+    // Configuración de Firebase (Debes obtener estos datos de tu consola Firebase)
+    const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_PROYECTO.firebaseapp.com",
+        projectId: "TU_PROYECTO",
+        storageBucket: "TU_PROYECTO.appspot.com",
+        messagingSenderId: "TU_SENDER_ID",
+        appId: "TU_APP_ID"
+    };
 
-// Render
-function render() {
-    const table = document.getElementById("tableBody");
-    table.innerHTML = "";
+    // Inicializar Firebase (Solo si tienes la config, sino funcionará en modo local simulación)
+    let auth;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+    } catch (e) {
+        console.log("Firebase no configurado, usando modo local de prueba.");
+    }
 
-    database.forEach((item, index) => {
-        if (item.type === "text") {
-            table.innerHTML += `
-                <tr>
-                    <td>Texto</td>
-                    <td>${item.name} (${item.age})</td>
-                    <td>
-                        <button onclick="deleteItem(${index})">Eliminar</button>
-                    </td>
-                </tr>
-            `;
-        } else if (item.type === "file") {
-            table.innerHTML += `
-                <tr>
-                    <td>Archivo</td>
-                    <td>${item.name}</td>
-                    <td>
-                        <button onclick="downloadFile(${index})">Descargar</button>
-                        <button onclick="deleteItem(${index})">Eliminar</button>
-                    </td>
-                </tr>
-            `;
+    let currentUser = null;
+    let database = JSON.parse(localStorage.getItem("private_db")) || [];
+
+    // --- LÓGICA DE AUTENTICACIÓN ---
+
+    function loginWithGoogle() {
+        // Simulación para que puedas probar el código de inmediato
+        if (!auth) {
+            currentUser = { email: "usuario@ejemplo.com", name: "Usuario Prueba" };
+            showApp();
+            return;
         }
-    });
 
-    localStorage.setItem("db", JSON.stringify(database));
-}
-
-// Agregar texto
-function addData() {
-    const name = document.getElementById("name").value;
-    const age = document.getElementById("age").value;
-
-    if (!name || !age) {
-        alert("Completa los campos ❗");
-        return;
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).then((result) => {
+            currentUser = result.user;
+            showApp();
+        }).catch(error => alert("Error al entrar: " + error.message));
     }
 
-    database.push({
-        type: "text",
-        name,
-        age
-    });
-
-    render();
-
-    document.getElementById("name").value = "";
-    document.getElementById("age").value = "";
-}
-
-// Guardar archivo
-function saveFile() {
-    const fileInput = document.getElementById("fileUpload");
-    const file = fileInput.files[0];
-
-    if (!file) {
-        alert("Selecciona un archivo ❗");
-        return;
+    function showApp() {
+        document.getElementById("auth-screen").style.display = "none";
+        document.getElementById("app-content").style.display = "block";
+        document.getElementById("user-email").innerText = currentUser.email;
+        render();
     }
 
-    const reader = new FileReader();
+    function logout() {
+        if (auth) auth.signOut();
+        location.reload();
+    }
 
-    reader.onload = function(e) {
+    // --- LÓGICA DE DATOS ---
+
+    function render() {
+        const table = document.getElementById("tableBody");
+        table.innerHTML = "";
+
+        // FILTRO DE PRIVACIDAD: Solo mostramos lo que pertenece al usuario actual
+        const myData = database.filter(item => item.owner === currentUser.email);
+
+        myData.forEach((item, index) => {
+            const realIndex = database.indexOf(item);
+            let content = item.type === "text" ? 
+                `<b>${item.name}:</b> ${item.value}` : 
+                `<a href="${item.data}" download="${item.name}">${item.name} (Descargar)</a>`;
+
+            table.innerHTML += `
+                <tr>
+                    <td>${item.type === "text" ? '📝 Dato' : '📄 Archivo'}</td>
+                    <td>${content}</td>
+                    <td><button class="btn-delete" onclick="deleteItem(${realIndex})">Eliminar</button></td>
+                </tr>
+            `;
+        });
+
+        localStorage.setItem("private_db", JSON.stringify(database));
+    }
+
+    function addData() {
+        const name = document.getElementById("doc-name").value;
+        const value = document.getElementById("doc-value").value;
+
+        if (!name || !value) return alert("Completa los campos");
+
         database.push({
-            type: "file",
-            name: file.name,
-            mime: file.type,
-            data: e.target.result
+            type: "text",
+            name,
+            value,
+            owner: currentUser.email // Registro de propiedad
         });
 
         render();
-        alert("Archivo guardado ✔️");
-    };
+        document.getElementById("doc-name").value = "";
+        document.getElementById("doc-value").value = "";
+    }
 
-    reader.readAsDataURL(file);
-}
+    function saveFile() {
+        const fileInput = document.getElementById("fileUpload");
+        const file = fileInput.files[0];
+        if (!file) return alert("Selecciona un archivo");
 
-// Descargar archivo
-function downloadFile(index) {
-    const file = database[index];
-
-    const a = document.createElement("a");
-    a.href = file.data;
-    a.download = file.name;
-    a.click();
-}
-
-// Eliminar
-function deleteItem(index) {
-    database.splice(index, 1);
-    render();
-}
-
-// Exportar JSON
-function exportDB() {
-    const blob = new Blob([JSON.stringify(database, null, 2)], {
-        type: "application/json"
-    });
-
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "database_backup.json";
-    a.click();
-}
-
-// Importar JSON
-function importDB(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = function(e) {
-        try {
-            database = JSON.parse(e.target.result);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            database.push({
+                type: "file",
+                name: file.name,
+                data: e.target.result,
+                owner: currentUser.email // Registro de propiedad
+            });
             render();
-            alert("Base de datos cargada ✔️");
-        } catch {
-            alert("Archivo inválido ❌");
+            alert("Documento guardado privadamente ✔️");
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function deleteItem(index) {
+        if (confirm("¿Seguro que quieres borrar este documento personal?")) {
+            database.splice(index, 1);
+            render();
         }
-    };
-
-    reader.readAsText(file);
-}
-
-// Init
-render();
+    }
 </script>
-
 </body>
 </html>
