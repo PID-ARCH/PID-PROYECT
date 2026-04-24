@@ -2,40 +2,45 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>PERSONAL INSURANCE DOCUMENTS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PID - Personal Documents</title>
 
 <style>
-body { font-family: Arial; background: #f4f6f8; padding: 20px; }
-.container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
+body { font-family: Arial; background: #eef2f5; padding: 20px; }
+.container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 12px; }
 h1 { text-align: center; }
-input, button { padding: 10px; margin: 5px; }
-button { background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+input, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #ddd; }
+button { background: #007bff; color: white; cursor: pointer; }
+.logout { background: red; }
 table { width: 100%; margin-top: 20px; border-collapse: collapse; }
-th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: center; }
 th { background: #007bff; color: white; }
 </style>
 </head>
 
 <body>
 
-<div id="auth">
-    <h2>🔐 Login</h2>
+<div id="auth" class="container">
+    <h1>🔐 Acceso</h1>
     <button id="login">Entrar con Google</button>
 </div>
 
-<div class="container" id="app" style="display:none;">
-    <h1>📊 PERSONAL DOCUMENTS</h1>
+<div id="app" class="container" style="display:none;">
+    <h1>📊 Mis Documentos</h1>
     <p id="user"></p>
-    <button id="logout">Cerrar sesión</button>
+    <button id="logout" class="logout">Cerrar sesión</button>
 
-    <h3>➕ Agregar Datos</h3>
-    <input type="text" id="name" placeholder="Nombre">
-    <input type="text" id="age" placeholder="Edad">
-    <button id="add">Agregar</button>
+    <h3>➕ Agregar Dato</h3>
+    <input id="name" placeholder="Nombre">
+    <input id="value" placeholder="Valor">
+    <button id="add">Guardar</button>
 
     <h3>📂 Subir Archivo</h3>
-    <input type="file" id="fileUpload">
-    <button id="upload">Guardar Archivo</button>
+    <input type="file" id="file">
+    <button id="upload">Subir</button>
+
+    <h3>💾 Backup</h3>
+    <button onclick="exportData()">Exportar JSON</button>
 
     <table>
         <thead>
@@ -45,7 +50,7 @@ th { background: #007bff; color: white; }
                 <th>Acción</th>
             </tr>
         </thead>
-        <tbody id="tableBody"></tbody>
+        <tbody id="table"></tbody>
     </table>
 </div>
 
@@ -55,7 +60,6 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signO
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
 
-// 🔥 TU CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyB6yuXC28SU6ujb4yLyAUaZCSVNYHGM2Gs",
   authDomain: "pid-proyecto-c9ed4.firebaseapp.com",
@@ -74,36 +78,30 @@ const provider = new GoogleAuthProvider();
 let user = null;
 
 // LOGIN
-document.getElementById("login").onclick = () => {
-    signInWithPopup(auth, provider);
-};
-
-document.getElementById("logout").onclick = () => {
-    signOut(auth);
-};
+login.onclick = () => signInWithPopup(auth, provider);
+logout.onclick = () => signOut(auth);
 
 // DETECTAR USUARIO
-onAuthStateChanged(auth, async (u) => {
+onAuthStateChanged(auth, (u) => {
     if (u) {
         user = u;
-        document.getElementById("auth").style.display = "none";
-        document.getElementById("app").style.display = "block";
+        auth.style.display = "none";
+        app.style.display = "block";
         document.getElementById("user").innerText = user.email;
         loadData();
     }
 });
 
-// AGREGAR TEXTO
-document.getElementById("add").onclick = async () => {
-    const name = document.getElementById("name").value;
-    const age = document.getElementById("age").value;
-
-    if (!name || !age) return alert("Completa los campos");
+// AGREGAR DATO
+add.onclick = async () => {
+    const name = nameInput.value;
+    const value = valueInput.value;
+    if (!name || !value) return;
 
     await addDoc(collection(db, "docs"), {
         type: "text",
         name,
-        age,
+        value,
         owner: user.uid
     });
 
@@ -111,9 +109,9 @@ document.getElementById("add").onclick = async () => {
 };
 
 // SUBIR ARCHIVO
-document.getElementById("upload").onclick = async () => {
-    const file = document.getElementById("fileUpload").files[0];
-    if (!file) return alert("Selecciona archivo");
+upload.onclick = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
 
     const storageRef = ref(storage, "files/" + user.uid + "/" + file.name);
     await uploadBytes(storageRef, file);
@@ -131,25 +129,21 @@ document.getElementById("upload").onclick = async () => {
 
 // CARGAR DATOS
 async function loadData() {
-    const table = document.getElementById("tableBody");
     table.innerHTML = "";
-
     const q = query(collection(db, "docs"), where("owner", "==", user.uid));
-    const snapshot = await getDocs(q);
+    const snap = await getDocs(q);
 
-    snapshot.forEach(docSnap => {
-        const data = docSnap.data();
+    snap.forEach(d => {
+        const data = d.data();
 
         let row = "<tr>";
-
         if (data.type === "text") {
-            row += `<td>Texto</td><td>${data.name} (${data.age})</td>`;
+            row += `<td>Texto</td><td>${data.name}: ${data.value}</td>`;
         } else {
             row += `<td>Archivo</td><td><a href="${data.url}" target="_blank">${data.name}</a></td>`;
         }
 
-        row += `<td><button onclick="deleteItem('${docSnap.id}')">Eliminar</button></td></tr>`;
-
+        row += `<td><button onclick="deleteItem('${d.id}')">Eliminar</button></td></tr>`;
         table.innerHTML += row;
     });
 }
@@ -158,6 +152,21 @@ async function loadData() {
 window.deleteItem = async (id) => {
     await deleteDoc(doc(db, "docs", id));
     loadData();
+};
+
+// EXPORTAR
+window.exportData = async () => {
+    const q = query(collection(db, "docs"), where("owner", "==", user.uid));
+    const snap = await getDocs(q);
+
+    const data = [];
+    snap.forEach(d => data.push(d.data()));
+
+    const blob = new Blob([JSON.stringify(data, null, 2)]);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "backup.json";
+    a.click();
 };
 </script>
 
