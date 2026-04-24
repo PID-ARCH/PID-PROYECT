@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PERSONAL INSURANCE DOCUMENTS</title>
     
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
-
     <style>
         :root { --primary: #007bff; --dark: #343a40; --light: #f4f6f8; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--light); margin: 0; padding: 20px; }
@@ -30,8 +27,8 @@
 
     <div id="auth-screen" class="container">
         <h1>🔐 Acceso Privado</h1>
-        <p>Inicia sesión para gestionar tus documentos de seguros.</p>
-        <button class="google-btn" onclick="loginWithGoogle()">Entrar con Google</button>
+        <p>Inicia sesión con tu cuenta de Google para gestionar tus documentos de seguros.</p>
+        <button class="google-btn" id="loginBtn">Entrar con Google</button>
     </div>
 
     <div id="app-content" class="container">
@@ -39,30 +36,30 @@
             <h2>📊 Mis Documentos</h2>
             <div>
                 <span id="user-email" style="font-weight: bold; margin-right: 10px;"></span>
-                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+                <button class="btn-logout" id="logoutBtn">Cerrar Sesión</button>
             </div>
         </div>
 
         <div class="section">
-            <h3>➕ Registrar Seguro</h3>
+            <h3>➕ Registrar Seguro / Dato</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px;">
-                <input type="text" id="doc-name" placeholder="Nombre (ej. Póliza)">
-                <input type="text" id="doc-value" placeholder="Dato (ej. #123)">
-                <button class="btn-add" onclick="addData()">Guardar</button>
+                <input type="text" id="doc-name" placeholder="Nombre (ej. Póliza Auto)">
+                <input type="text" id="doc-value" placeholder="Dato (ej. #778899)">
+                <button class="btn-add" id="addBtn">Guardar Dato</button>
             </div>
         </div>
 
         <div class="section">
             <h3>📂 Subir Archivo</h3>
             <input type="file" id="fileUpload" accept="image/*,.pdf">
-            <button onclick="saveFile()" style="background: #28a745; color: white; border: none; width: 100%;">Subir</button>
+            <button id="uploadBtn" style="background: #28a745; color: white; border: none; width: 100%;">Subir y Guardar</button>
         </div>
 
         <table>
             <thead>
                 <tr>
                     <th>Tipo</th>
-                    <th>Descripción</th>
+                    <th>Descripción / Archivo</th>
                     <th>Acción</th>
                 </tr>
             </thead>
@@ -70,108 +67,115 @@
         </table>
     </div>
 
-<script>
- // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyB6yuXC28SU6ujb4yLyAUaZCSVNYHGM2Gs",
-  authDomain: "pid-proyecto-c9ed4.firebaseapp.com",
-  projectId: "pid-proyecto-c9ed4",
-  storageBucket: "pid-proyecto-c9ed4.firebasestorage.app",
-  messagingSenderId: "191766920684",
-  appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9",
-  measurementId: "G-JRR6NSNWP7"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-
-    let currentUser = null;
-    let database = JSON.parse(localStorage.getItem("pid_db")) || [];
-
-    function loginWithGoogle() {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).then((result) => {
-            currentUser = result.user;
-            showApp();
-        }).catch(error => {
-            alert("Error: " + error.message);
-        });
-    }
-
-    auth.onAuthStateChanged((user) => {
-        if (user) {
-            currentUser = user;
-            showApp();
-        }
-    });
-
-    function showApp() {
-        document.getElementById("auth-screen").style.display = "none";
-        document.getElementById("app-content").style.display = "block";
-        document.getElementById("user-email").innerText = currentUser.email;
-        render();
-    }
-
-    function logout() {
-        auth.signOut().then(() => { location.reload(); });
-    }
-
-    function render() {
-        const table = document.getElementById("tableBody");
-        table.innerHTML = "";
-        const myData = database.filter(item => item.owner === currentUser.email);
-        myData.forEach((item, index) => {
-            let content = item.type === "text" ? 
-                `<b>${item.name}:</b> ${item.value}` : 
-                `<a href="${item.data}" download="${item.name}">📄 Descargar ${item.name}</a>`;
-            
-            table.innerHTML += `
-                <tr>
-                    <td>${item.type === "text" ? '📝' : '📁'}</td>
-                    <td>${content}</td>
-                    <td><button onclick="deleteItem(${index})" style="background:red; color:white; border:none; padding:5px; border-radius:4px;">X</button></td>
-                </tr>`;
-        });
-        localStorage.setItem("pid_db", JSON.stringify(database));
-    }
-
-    function addData() {
-        const name = document.getElementById("doc-name").value;
-        const value = document.getElementById("doc-value").value;
-        if (!name || !value) return;
-        database.push({ type: "text", name, value, owner: currentUser.email });
-        render();
-        document.getElementById("doc-name").value = "";
-        document.getElementById("doc-value").value = "";
-    }
-
-    function saveFile() {
-        const fileInput = document.getElementById("fileUpload");
-        const file = fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            database.push({ type: "file", name: file.name, data: e.target.result, owner: currentUser.email });
-            render();
-            fileInput.value = "";
+        // CONFIGURACIÓN CORREGIDA (Sin la 'o' de proyecto)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6yuXC28SU6ujb4yLyaAUZZVNYHGM2Gs",
+            authDomain: "pid-project-c9ed4.firebaseapp.com",
+            projectId: "pid-project-c9ed4",
+            storageBucket: "pid-project-c9ed4.firebasestorage.app",
+            messagingSenderId: "191766920684",
+            appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9",
+            measurementId: "G-JRR6NSNWP7"
         };
-        reader.readAsDataURL(file);
-    }
 
-    function deleteItem(index) {
-        if (confirm("¿Eliminar?")) {
-            database.splice(index, 1);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let database = JSON.parse(localStorage.getItem("pid_db_secure")) || [];
+
+        // --- Funciones de Interfaz ---
+        const loginBtn = document.getElementById("loginBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+        const addBtn = document.getElementById("addBtn");
+        const uploadBtn = document.getElementById("uploadBtn");
+
+        loginBtn.onclick = () => {
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    currentUser = result.user;
+                    showApp();
+                })
+                .catch((error) => {
+                    alert("Error al entrar: " + error.message);
+                });
+        };
+
+        logoutBtn.onclick = () => {
+            signOut(auth).then(() => {
+                location.reload();
+            });
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                showApp();
+            }
+        });
+
+        function showApp() {
+            document.getElementById("auth-screen").style.display = "none";
+            document.getElementById("app-content").style.display = "block";
+            document.getElementById("user-email").innerText = currentUser.email;
             render();
         }
-    }
-</script>
+
+        function render() {
+            const table = document.getElementById("tableBody");
+            table.innerHTML = "";
+            const myData = database.filter(item => item.owner === currentUser.email);
+            
+            myData.forEach((item, index) => {
+                const realIndex = database.indexOf(item);
+                let content = item.type === "text" ? 
+                    `<b>${item.name}:</b> ${item.value}` : 
+                    `<a href="${item.data}" download="${item.name}" style="color:#007bff; text-decoration:none;">📄 Descargar ${item.name}</a>`;
+                
+                table.innerHTML += `
+                    <tr>
+                        <td>${item.type === "text" ? '📝 Dato' : '📁 Archivo'}</td>
+                        <td>${content}</td>
+                        <td><button onclick="window.deleteItem(${realIndex})" style="background:red; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">Eliminar</button></td>
+                    </tr>`;
+            });
+            localStorage.setItem("pid_db_secure", JSON.stringify(database));
+        }
+
+        addBtn.onclick = () => {
+            const name = document.getElementById("doc-name").value;
+            const value = document.getElementById("doc-value").value;
+            if (!name || !value) return;
+            database.push({ type: "text", name, value, owner: currentUser.email });
+            render();
+            document.getElementById("doc-name").value = "";
+            document.getElementById("doc-value").value = "";
+        };
+
+        uploadBtn.onclick = () => {
+            const fileInput = document.getElementById("fileUpload");
+            const file = fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                database.push({ type: "file", name: file.name, data: e.target.result, owner: currentUser.email });
+                render();
+                fileInput.value = "";
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.deleteItem = (index) => {
+            if (confirm("¿Seguro que quieres borrar este registro?")) {
+                database.splice(index, 1);
+                render();
+            }
+        };
+    </script>
 </body>
 </html>
