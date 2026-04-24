@@ -71,12 +71,12 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
-        // CONFIGURACIÓN CORREGIDA (Sin la 'o' de proyecto)
+        // ✅ CONFIG CORRECTA
         const firebaseConfig = {
-            apiKey: "AIzaSyB6yuXC28SU6ujb4yLyaAUZZVNYHGM2Gs",
-            authDomain: "pid-project-c9ed4.firebaseapp.com",
-            projectId: "pid-project-c9ed4",
-            storageBucket: "pid-project-c9ed4.firebasestorage.app",
+            apiKey: "AIzaSyB6yuXC28SU6ujb4yLyAUaZCSVNYHGM2Gs",
+            authDomain: "pid-proyecto-c9ed4.firebaseapp.com",
+            projectId: "pid-proyecto-c9ed4",
+            storageBucket: "pid-proyecto-c9ed4.firebasestorage.app",
             messagingSenderId: "191766920684",
             appId: "1:191766920684:web:9b87ce0ea8e5d7db7914c9",
             measurementId: "G-JRR6NSNWP7"
@@ -89,7 +89,6 @@
         let currentUser = null;
         let database = JSON.parse(localStorage.getItem("pid_db_secure")) || [];
 
-        // --- Funciones de Interfaz ---
         const loginBtn = document.getElementById("loginBtn");
         const logoutBtn = document.getElementById("logoutBtn");
         const addBtn = document.getElementById("addBtn");
@@ -135,15 +134,16 @@
                 const realIndex = database.indexOf(item);
                 let content = item.type === "text" ? 
                     `<b>${item.name}:</b> ${item.value}` : 
-                    `<a href="${item.data}" download="${item.name}" style="color:#007bff; text-decoration:none;">📄 Descargar ${item.name}</a>`;
+                    `<a href="${item.data}" download="${item.name}">📄 Descargar ${item.name}</a>`;
                 
                 table.innerHTML += `
                     <tr>
                         <td>${item.type === "text" ? '📝 Dato' : '📁 Archivo'}</td>
                         <td>${content}</td>
-                        <td><button onclick="window.deleteItem(${realIndex})" style="background:red; color:white; border:none; padding:5px; border-radius:4px; cursor:pointer;">Eliminar</button></td>
+                        <td><button onclick="window.deleteItem(${realIndex})" style="background:red; color:white;">Eliminar</button></td>
                     </tr>`;
             });
+
             localStorage.setItem("pid_db_secure", JSON.stringify(database));
         }
 
