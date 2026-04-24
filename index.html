@@ -37,10 +37,7 @@ th { background:#007bff; color:white; }
 
     <h3>📂 Subir Archivo</h3>
     <input type="file" id="fileInput">
-    <button id="uploadBtn">Subir</button>
-
-    <h3>💾 Backup</h3>
-    <button id="exportBtn">Exportar JSON</button>
+    <button id="uploadBtn">Subir Archivo</button>
 
     <table>
         <thead>
@@ -56,7 +53,7 @@ th { background:#007bff; color:white; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
 
@@ -74,8 +71,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const provider = new GoogleAuthProvider();
 
+const provider = new GoogleAuthProvider();
 let currentUser = null;
 
 // ELEMENTOS
@@ -83,11 +80,23 @@ const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const addBtn = document.getElementById("addBtn");
 const uploadBtn = document.getElementById("uploadBtn");
-const exportBtn = document.getElementById("exportBtn");
 
-// LOGIN
-loginBtn.onclick = () => signInWithPopup(auth, provider);
-logoutBtn.onclick = () => signOut(auth);
+// LOGIN (REDIRECT)
+loginBtn.onclick = () => {
+    signInWithRedirect(auth, provider);
+};
+
+// RESULTADO LOGIN
+getRedirectResult(auth)
+.then(result => {
+    if (result?.user) {
+        console.log("Login correcto");
+    }
+})
+.catch(err => {
+    console.error(err);
+    alert(err.message);
+});
 
 // ESTADO USUARIO
 onAuthStateChanged(auth, (user) => {
@@ -102,38 +111,54 @@ onAuthStateChanged(auth, (user) => {
 
 // AGREGAR TEXTO
 addBtn.onclick = async () => {
-    const name = document.getElementById("nameInput").value;
-    const value = document.getElementById("valueInput").value;
+    try {
+        const name = document.getElementById("nameInput").value;
+        const value = document.getElementById("valueInput").value;
 
-    if (!name || !value) return alert("Completa los campos");
+        if (!name || !value) return alert("Completa los campos");
 
-    await addDoc(collection(db, "docs"), {
-        type: "text",
-        name,
-        value,
-        owner: currentUser.uid
-    });
+        await addDoc(collection(db, "docs"), {
+            type: "text",
+            name,
+            value,
+            owner: currentUser.uid
+        });
 
-    loadData();
+        alert("Guardado ✔️");
+        loadData();
+
+    } catch (error) {
+        console.error(error);
+        alert(error.message);
+    }
 };
 
-// SUBIR ARCHIVO
+// SUBIR ARCHIVO (CORREGIDO)
 uploadBtn.onclick = async () => {
-    const file = document.getElementById("fileInput").files[0];
-    if (!file) return alert("Selecciona archivo");
+    try {
+        const file = document.getElementById("fileInput").files[0];
+        if (!file) return alert("Selecciona un archivo");
 
-    const storageRef = ref(storage, "files/" + currentUser.uid + "/" + file.name);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
+        const fileRef = ref(storage, `files/${currentUser.uid}/${Date.now()}_${file.name}`);
 
-    await addDoc(collection(db, "docs"), {
-        type: "file",
-        name: file.name,
-        url,
-        owner: currentUser.uid
-    });
+        await uploadBytes(fileRef, file);
 
-    loadData();
+        const url = await getDownloadURL(fileRef);
+
+        await addDoc(collection(db, "docs"), {
+            type: "file",
+            name: file.name,
+            url,
+            owner: currentUser.uid
+        });
+
+        alert("Archivo subido ✔️");
+        loadData();
+
+    } catch (error) {
+        console.error(error);
+        alert("Error: " + error.message);
+    }
 };
 
 // CARGAR DATOS
@@ -142,9 +167,9 @@ async function loadData() {
     table.innerHTML = "";
 
     const q = query(collection(db, "docs"), where("owner", "==", currentUser.uid));
-    const snapshot = await getDocs(q);
+    const snap = await getDocs(q);
 
-    snapshot.forEach(d => {
+    snap.forEach(d => {
         const data = d.data();
 
         let row = "<tr>";
@@ -163,21 +188,6 @@ async function loadData() {
 window.deleteItem = async (id) => {
     await deleteDoc(doc(db, "docs", id));
     loadData();
-};
-
-// EXPORTAR
-exportBtn.onclick = async () => {
-    const q = query(collection(db, "docs"), where("owner", "==", currentUser.uid));
-    const snapshot = await getDocs(q);
-
-    const data = [];
-    snapshot.forEach(d => data.push(d.data()));
-
-    const blob = new Blob([JSON.stringify(data, null, 2)]);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "backup.json";
-    a.click();
 };
 </script>
 
