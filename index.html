@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title> PERSONAL INSURANCE DOCUMENTS </title>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+    text-align: center;
+}
+
+input, button {
+    padding: 10px;
+    margin: 5px;
+}
+
+button {
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+table {
+    width: 100%;
+    margin-top: 20px;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+}
+
+th {
+    background: #007bff;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>📊 PERSONAL DOCUMENTS </h1>
+
+    <h3>➕ Agregar Datos</h3>
+    <input type="text" id="name" placeholder="Nombre">
+    <input type="text" id="age" placeholder="Edad">
+    <button onclick="addData()">Agregar</button>
+
+    <h3>📂 Subir Archivo</h3>
+    <input type="file" id="fileUpload">
+    <button onclick="saveFile()">Guardar Archivo</button>
+
+    <h3>💾 Backup</h3>
+    <button onclick="exportDB()">Exportar JSON</button>
+    <input type="file" onchange="importDB(event)">
+
+    <table>
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Contenido</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+let database = JSON.parse(localStorage.getItem("db")) || [];
+
+// Render
+function render() {
+    const table = document.getElementById("tableBody");
+    table.innerHTML = "";
+
+    database.forEach((item, index) => {
+        if (item.type === "text") {
+            table.innerHTML += `
+                <tr>
+                    <td>Texto</td>
+                    <td>${item.name} (${item.age})</td>
+                    <td>
+                        <button onclick="deleteItem(${index})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        } else if (item.type === "file") {
+            table.innerHTML += `
+                <tr>
+                    <td>Archivo</td>
+                    <td>${item.name}</td>
+                    <td>
+                        <button onclick="downloadFile(${index})">Descargar</button>
+                        <button onclick="deleteItem(${index})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    localStorage.setItem("db", JSON.stringify(database));
+}
+
+// Agregar texto
+function addData() {
+    const name = document.getElementById("name").value;
+    const age = document.getElementById("age").value;
+
+    if (!name || !age) {
+        alert("Completa los campos ❗");
+        return;
+    }
+
+    database.push({
+        type: "text",
+        name,
+        age
+    });
+
+    render();
+
+    document.getElementById("name").value = "";
+    document.getElementById("age").value = "";
+}
+
+// Guardar archivo
+function saveFile() {
+    const fileInput = document.getElementById("fileUpload");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Selecciona un archivo ❗");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        database.push({
+            type: "file",
+            name: file.name,
+            mime: file.type,
+            data: e.target.result
+        });
+
+        render();
+        alert("Archivo guardado ✔️");
+    };
+
+    reader.readAsDataURL(file);
+}
+
+// Descargar archivo
+function downloadFile(index) {
+    const file = database[index];
+
+    const a = document.createElement("a");
+    a.href = file.data;
+    a.download = file.name;
+    a.click();
+}
+
+// Eliminar
+function deleteItem(index) {
+    database.splice(index, 1);
+    render();
+}
+
+// Exportar JSON
+function exportDB() {
+    const blob = new Blob([JSON.stringify(database, null, 2)], {
+        type: "application/json"
+    });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "database_backup.json";
+    a.click();
+}
+
+// Importar JSON
+function importDB(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            database = JSON.parse(e.target.result);
+            render();
+            alert("Base de datos cargada ✔️");
+        } catch {
+            alert("Archivo inválido ❌");
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+// Init
+render();
+</script>
+
+</body>
+</html>
